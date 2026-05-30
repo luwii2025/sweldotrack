@@ -10,6 +10,7 @@ from contribution_tables import (
     get_withholding_tax,
 )
 from pdf_generator import generate_payslip_pdf
+from email_service import send_payslip_email
 
 load_dotenv()
 
@@ -143,8 +144,8 @@ def run_payroll(cutoff_str):
 
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, full_name, basic_salary FROM employees WHERE is_active = TRUE")
-    employees = [{'id': r[0], 'full_name': r[1], 'basic_salary': r[2]} for r in cur.fetchall()]
+    cur.execute("SELECT id, full_name, email, basic_salary FROM employees WHERE is_active = TRUE")
+    employees = [{'id': r[0], 'full_name': r[1], 'email': r[2], 'basic_salary': r[3]} for r in cur.fetchall()]
     conn.close()
 
     print(f"   Processing {len(employees)} employees...\n")
@@ -159,6 +160,9 @@ def run_payroll(cutoff_str):
         # New code: Generate PDF
         pdf_path = generate_payslip_pdf(p, cutoff_str)
         print(f"   Generated PDF: {pdf_path}")
+        
+        # Send Email
+        send_payslip_email(emp['email'], emp['full_name'], cutoff_str, pdf_path)
         
         results.append(p)
 
