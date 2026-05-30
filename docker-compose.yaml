@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sweldotrack-db
+    restart: always
+    environment:
+      POSTGRES_DB: sweldotrack
+      POSTGRES_USER: sweldoadmin
+      POSTGRES_PASSWORD: sweldopass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sweldotrack-backend
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=sweldotrack
+      - DB_USER=sweldoadmin
+      - DB_PASSWORD=sweldopass
+      - PORT=3001
+      - JWT_SECRET=supersecretjwtkey123!
+    depends_on:
+      - db
+
+  payroll-engine:
+    build:
+      context: ./payroll-engine
+      dockerfile: Dockerfile
+    container_name: sweldotrack-payroll-engine
+    restart: always
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=sweldotrack
+      - DB_USER=sweldoadmin
+      - DB_PASSWORD=sweldopass
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+    depends_on:
+      - db
+      - mailhog
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025" # SMTP server
+      - "8026:8025" # Web UI
+
+volumes:
+  pgdata:
