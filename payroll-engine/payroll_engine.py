@@ -32,24 +32,24 @@ def get_cutoff_dates(cutoff_str):
         return date(year, month, 16), cutoff, 13
 
 def get_days_present(conn, employee_id, start_date, end_date):
-    cur = conn.cursor()
-    cur.execute(
-        """SELECT COUNT(*) FROM attendance
-           WHERE employee_id = %s AND date BETWEEN %s AND %s
-           AND status IN ('present', 'late')""",
-        (employee_id, start_date, end_date)
-    )
-    return cur.fetchone()[0]
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT COUNT(*) FROM attendance
+               WHERE employee_id = %s AND date BETWEEN %s AND %s
+               AND status IN ('present', 'late')""",
+            (employee_id, start_date, end_date)
+        )
+        return cur.fetchone()[0]
 
 def get_overtime_hours(conn, employee_id, start_date, end_date):
-    cur = conn.cursor()
-    cur.execute(
-        """SELECT COALESCE(SUM(overtime_hours), 0)
-           FROM attendance
-           WHERE employee_id = %s AND date BETWEEN %s AND %s""",
-        (employee_id, start_date, end_date)
-    )
-    return float(cur.fetchone()[0])
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT COALESCE(SUM(overtime_hours), 0)
+               FROM attendance
+               WHERE employee_id = %s AND date BETWEEN %s AND %s""",
+            (employee_id, start_date, end_date)
+        )
+        return float(cur.fetchone()[0])
 
 def compute_payroll(conn, employee, start_date, end_date, working_days):
     emp_id = employee['id']
@@ -115,25 +115,24 @@ def print_payslip(p):
     print(f"{'='*52}")
 
 def save_to_db(conn, p, cutoff_str):
-    cur = conn.cursor()
-    cur.execute(
-        """INSERT INTO payroll_runs (
-               employee_id, cutoff_period, working_days, days_present,
-               basic_pay, overtime_pay, gross_pay,
-               sss_contribution, philhealth_contribution,
-               pagibig_contribution, withholding_tax, net_pay, status
-           ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')
-           ON CONFLICT (employee_id, cutoff_period) DO UPDATE SET
-               days_present = EXCLUDED.days_present,
-               basic_pay = EXCLUDED.basic_pay,
-               gross_pay = EXCLUDED.gross_pay,
-               net_pay = EXCLUDED.net_pay""",
-        (p['employee_id'], cutoff_str, p['working_days'], p['days_present'],
-         p['basic_pay'], p['overtime_pay'], p['gross_pay'],
-         p['sss'], p['philhealth'], p['pagibig'],
-         p['withholding_tax'], p['net_pay'])
-    )
-    conn.commit()
+    with conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO payroll_runs (
+                   employee_id, cutoff_period, working_days, days_present,
+                   basic_pay, overtime_pay, gross_pay,
+                   sss_contribution, philhealth_contribution,
+                   pagibig_contribution, withholding_tax, net_pay, status
+               ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')
+               ON CONFLICT (employee_id, cutoff_period) DO UPDATE SET
+                   days_present = EXCLUDED.days_present,
+                   basic_pay = EXCLUDED.basic_pay,
+                   gross_pay = EXCLUDED.gross_pay,
+                   net_pay = EXCLUDED.net_pay""",
+            (p['employee_id'], cutoff_str, p['working_days'], p['days_present'],
+             p['basic_pay'], p['overtime_pay'], p['gross_pay'],
+             p['sss'], p['philhealth'], p['pagibig'],
+             p['withholding_tax'], p['net_pay'])
+        )
 
 def run_payroll(cutoff_str):
     start_date, end_date, working_days = get_cutoff_dates(cutoff_str)
@@ -142,9 +141,9 @@ def run_payroll(cutoff_str):
 
     conn = get_db()
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT id, full_name, email, basic_salary FROM employees WHERE is_active = TRUE")
-        employees = [{'id': r[0], 'full_name': r[1], 'email': r[2], 'basic_salary': r[3]} for r in cur.fetchall()]
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, full_name, email, basic_salary FROM employees WHERE is_active = TRUE")
+            employees = [{'id': r[0], 'full_name': r[1], 'email': r[2], 'basic_salary': r[3]} for r in cur.fetchall()]
 
         print(f"   Processing {len(employees)} employees...\n")
         results = []
@@ -162,6 +161,7 @@ def run_payroll(cutoff_str):
             
             results.append(p)
 
+        conn.commit()
         total_net = sum(r['net_pay'] for r in results)
         print(f"\n✅ Payroll complete. Total net pay: ₱{total_net:,.2f}\n")
     finally:
