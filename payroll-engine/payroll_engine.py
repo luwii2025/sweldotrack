@@ -9,6 +9,7 @@ from contribution_tables import (
     get_pagibig_contribution,
     get_withholding_tax,
 )
+from pdf_generator import generate_payslip_pdf
 
 load_dotenv()
 
@@ -154,6 +155,11 @@ def run_payroll(cutoff_str):
         db_conn = get_db()
         save_to_db(db_conn, p, cutoff_str)
         db_conn.close()
+        
+        # New code: Generate PDF
+        pdf_path = generate_payslip_pdf(p, cutoff_str)
+        print(f"   Generated PDF: {pdf_path}")
+        
         results.append(p)
 
     total_net = sum(r['net_pay'] for r in results)
