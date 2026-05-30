@@ -51,16 +51,14 @@ def get_overtime_hours(conn, employee_id, start_date, end_date):
     )
     return float(cur.fetchone()[0])
 
-def compute_payroll(employee, start_date, end_date, working_days):
+def compute_payroll(conn, employee, start_date, end_date, working_days):
     emp_id = employee['id']
     basic_monthly = float(employee['basic_salary'])
     daily_rate = basic_monthly / 26
     hourly_rate = daily_rate / 8
 
-    conn = get_db()
     days_present = get_days_present(conn, emp_id, start_date, end_date)
     overtime_hours = get_overtime_hours(conn, emp_id, start_date, end_date)
-    conn.close()
 
     basic_pay = round(daily_rate * days_present, 2)
     overtime_pay = round(hourly_rate * 1.25 * overtime_hours, 2)
@@ -143,31 +141,31 @@ def run_payroll(cutoff_str):
     print(f"   Period: {start_date} → {end_date}")
 
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id, full_name, email, basic_salary FROM employees WHERE is_active = TRUE")
-    employees = [{'id': r[0], 'full_name': r[1], 'email': r[2], 'basic_salary': r[3]} for r in cur.fetchall()]
-    conn.close()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, full_name, email, basic_salary FROM employees WHERE is_active = TRUE")
+        employees = [{'id': r[0], 'full_name': r[1], 'email': r[2], 'basic_salary': r[3]} for r in cur.fetchall()]
 
-    print(f"   Processing {len(employees)} employees...\n")
-    results = []
-    for emp in employees:
-        p = compute_payroll(emp, start_date, end_date, working_days)
-        print_payslip(p)
-        db_conn = get_db()
-        save_to_db(db_conn, p, cutoff_str)
-        db_conn.close()
-        
-        # New code: Generate PDF
-        pdf_path = generate_payslip_pdf(p, cutoff_str)
-        print(f"   Generated PDF: {pdf_path}")
-        
-        # Send Email
-        send_payslip_email(emp['email'], emp['full_name'], cutoff_str, pdf_path)
-        
-        results.append(p)
+        print(f"   Processing {len(employees)} employees...\n")
+        results = []
+        for emp in employees:
+            p = compute_payroll(conn, emp, start_date, end_date, working_days)
+            print_payslip(p)
+            save_to_db(conn, p, cutoff_str)
+            
+            # New code: Generate PDF
+            pdf_path = generate_payslip_pdf(p, cutoff_str)
+            print(f"   Generated PDF: {pdf_path}")
+            
+            # Send Email
+            send_payslip_email(emp['email'], emp['full_name'], cutoff_str, pdf_path)
+            
+            results.append(p)
 
-    total_net = sum(r['net_pay'] for r in results)
-    print(f"\n✅ Payroll complete. Total net pay: ₱{total_net:,.2f}\n")
+        total_net = sum(r['net_pay'] for r in results)
+        print(f"\n✅ Payroll complete. Total net pay: ₱{total_net:,.2f}\n")
+    finally:
+        conn.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
