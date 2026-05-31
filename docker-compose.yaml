@@ -39,6 +39,25 @@ services:
     networks:
       - sweldotrack-network
 
+  frontend:
+    build: ./frontend
+    container_name: sweldotrack-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: sweldotrack-nextauth-secret
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - sweldotrack-network
+
   payroll-engine:
     build: ./payroll-engine
     container_name: sweldotrack-payroll
@@ -62,3 +81,5 @@ volumes:
 networks:
   sweldotrack-network:
     driver: bridge
+
+    
