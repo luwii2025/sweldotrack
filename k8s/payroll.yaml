@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payroll-engine
+  namespace: sweldotrack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payroll-engine
+  template:
+    metadata:
+      labels:
+        app: payroll-engine
+    spec:
+      containers:
+        - name: payroll-engine
+          image: sweldotrack-payroll-engine:latest
+          imagePullPolicy: Never
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: sweldotrack_db
+            - name: DB_USER
+              value: sweldotrack
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sweldotrack-secrets
+                  key: DB_PASSWORD
