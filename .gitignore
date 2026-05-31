@@ -4,3 +4,7 @@ __pycache__/
 .next/
 *.pyc
 .DS_Store
+.superpowers
+.agents
+.skills
+.antigravitycli

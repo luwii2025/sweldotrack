@@ -18,7 +18,7 @@ export function Sidebar({ role = "employee" }: { role?: "employee" | "manager" |
       <div className="mb-8 px-4 text-xl font-bold tracking-tight">SweldoTrack</div>
       <nav className="flex flex-1 flex-col gap-1">
         {visibleRoutes.map((route) => (
-          <Button key={route.href} variant="ghost" className="justify-start gap-3" render={<Link href={route.href} />}>
+          <Button key={route.href} variant="ghost" className="justify-start gap-3" render={<Link href={route.href} />} nativeButton={false}>
             <route.icon className="h-4 w-4" />
             {route.label}
           </Button>

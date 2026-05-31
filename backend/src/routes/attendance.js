@@ -88,4 +88,4 @@ router.get('/team', authenticate, requireRole('admin', 'manager'), async (req, r
   }
 });
 
-module.exports = route
+module.exports = router

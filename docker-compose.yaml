@@ -1,62 +1,64 @@
-version: '3.8'
-
 services:
-  db:
-    image: postgres:15-alpine
+
+  postgres:
+    image: postgres:16
     container_name: sweldotrack-db
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: sweldotrack
-      POSTGRES_USER: sweldoadmin
-      POSTGRES_PASSWORD: sweldopass
+      POSTGRES_USER: sweldotrack
+      POSTGRES_PASSWORD: Water123!!
+      POSTGRES_DB: sweldotrack_db
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - sweldotrack-network
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: sweldotrack-backend
-    restart: always
+    build: ./backend
+    container_name: sweldotrack-api
+    restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "4000:4000"
     environment:
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=sweldotrack
-      - DB_USER=sweldoadmin
-      - DB_PASSWORD=sweldopass
-      - PORT=3001
-      - JWT_SECRET=supersecretjwtkey123!
+      PORT: 4000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: sweldotrack_db
+      DB_USER: sweldotrack
+      DB_PASSWORD: Water123!!
+      JWT_SECRET: sweldotrack-dev-secret
+      JWT_EXPIRES_IN: 8h
     depends_on:
-      - db
+      - postgres
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - sweldotrack-network
 
   payroll-engine:
-    build:
-      context: ./payroll-engine
-      dockerfile: Dockerfile
-    container_name: sweldotrack-payroll-engine
-    restart: always
+    build: ./payroll-engine
+    container_name: sweldotrack-payroll
+    restart: unless-stopped
     environment:
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=sweldotrack
-      - DB_USER=sweldoadmin
-      - DB_PASSWORD=sweldopass
-      - SMTP_HOST=mailhog
-      - SMTP_PORT=1025
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: sweldotrack_db
+      DB_USER: sweldotrack
+      DB_PASSWORD: Water123!!
     depends_on:
-      - db
-      - mailhog
-
-  mailhog:
-    image: mailhog/mailhog
-    ports:
-      - "1025:1025" # SMTP server
-      - "8026:8025" # Web UI
+      - postgres
+    volumes:
+      - ./payroll-engine:/app
+    networks:
+      - sweldotrack-network
 
 volumes:
-  pgdata:
+  postgres_data:
+
+networks:
+  sweldotrack-network:
+    driver: bridge
